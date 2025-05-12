@@ -21,7 +21,7 @@
     "@vueuse/integrations": "^13.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-vue-next": "^0.507.0",
+    "lucide-vue-next": "^0.509.0",
     "lz-string": "^1.5.0",
     "openai": "^4.96.0",
     "peerjs": "^1.5.4",
