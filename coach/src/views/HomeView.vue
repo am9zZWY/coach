@@ -5,6 +5,8 @@ import Tasks from '@/components/task/Tasks.vue'
 import { useTaskStore } from '@/stores/task.ts'
 import Summary from '@/components/Summary.vue'
 import CookingSuggestion from '@/components/CookingSuggestion.vue'
+import MailList from '@/components/mail/MailList.vue'
+import { Card } from '@/components/ui/card'
 
 const taskStore = useTaskStore()
 const taskCount = computed(() => taskStore.flatTasks.length)
@@ -19,15 +21,9 @@ const taskCount = computed(() => taskStore.flatTasks.length)
       <Tasks class="lg:w-3/5" />
 
       <!-- Right Column: Calendar -->
-      <!-- <Card class="lg:w-1/2">
-        <CardHeader class="pb-2">
-          <CardTitle class="font-semibold text-lg">Kalender</CardTitle>
-          <CardDescription>Dein Kalender.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Calendar />
-        </CardContent>
-      </Card> -->
+      <Card class="lg:w-1/2">
+        <MailList />
+      </Card>
     </div>
 
     <Separator orientation="horizontal" class="my-8 opacity-70" />
