@@ -20,13 +20,15 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
+        working-directory: ./coach
         run: bun install
 
       - name: Build project
+        working-directory: ./coach
         run: bun run build --base=/coach/
 
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: dist
+          folder: coach/dist
           token: ${{ secrets.GITHUB_TOKEN }}
