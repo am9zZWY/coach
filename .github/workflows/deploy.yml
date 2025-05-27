@@ -1,4 +1,6 @@
+---
 name: Deploy to GitHub Pages
+
 on:
   push:
     branches:
@@ -8,6 +10,11 @@ jobs:
   deploy:
     name: deploy
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: read
+
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
