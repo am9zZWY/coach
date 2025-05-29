@@ -6,6 +6,10 @@
 version: 2
 updates:
   - package-ecosystem: "bun"
-    directory: "/"
+    directory: "/coach"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "mvn"
+    directory: "/coach_api"
     schedule:
       interval: "weekly"
