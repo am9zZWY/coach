@@ -9,7 +9,7 @@ updates:
     directory: "/coach"
     schedule:
       interval: "weekly"
-  - package-ecosystem: "mvn"
+  - package-ecosystem: "maven"
     directory: "/coach_api"
     schedule:
       interval: "weekly"
