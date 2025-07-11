@@ -12,7 +12,7 @@ export const useTaskStore = defineStore('tasks', () => {
     const db = useDB()
     const { lastUpdated } = storeToRefs(db)
 
-    const gptStore = useAssistantStore()
+    const assistantStore = useAssistantStore()
     const calendarStore = useCalendarStore()
 
     const tasks = ref<Task[]>(db.get('tasks') ?? [])
@@ -146,7 +146,7 @@ export const useTaskStore = defineStore('tasks', () => {
 
       const output = ref('')
       try {
-        output.value = await gptStore.run({ systemPrompt, userPrompt })
+        output.value = await assistantStore.run({ systemPrompt, userPrompt })
         output.value = output.value
           // Remove empty lines
           .replace(/^\s*[\r\n]/gm, '')
@@ -185,7 +185,7 @@ export const useTaskStore = defineStore('tasks', () => {
 
       const output = ref('')
       try {
-        output.value = await gptStore.run({ systemPrompt, userPrompt })
+        output.value = await assistantStore.run({ systemPrompt, userPrompt })
         output.value = output.value
           // Remove empty lines
           .replace(/^\s*[\r\n]/gm, '')
@@ -208,23 +208,6 @@ export const useTaskStore = defineStore('tasks', () => {
       } catch (e: any) {
         console.error('Generation failed:', e)
       }
-    }
-
-    function moveSubtaskToMain(subtaskId: string): boolean {
-      // Find which task contains this subtask
-      for (const task of tasks.value) {
-        const subtaskIndex = task.subTasks.findIndex(st => st.id === subtaskId)
-        if (subtaskIndex !== -1) {
-          // Get the subtask
-          const subtask = task.subTasks[subtaskIndex]
-          // Remove from subtasks
-          task.subTasks.splice(subtaskIndex, 1)
-          // Add to main tasks
-          tasks.value.push(subtask)
-          return true
-        }
-      }
-      return false
     }
 
     function toString(): string {

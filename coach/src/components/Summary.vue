@@ -11,7 +11,7 @@ import { MessageSquareQuote, RotateCcw } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { storeToRefs } from 'pinia'
 
-const gptStore = useAssistantStore()
+const assistantStore = useAssistantStore()
 const weatherStore = useWeatherStore()
 const taskStore = useTaskStore()
 const { flatTasks } = storeToRefs(taskStore)
@@ -131,7 +131,7 @@ const generateSummary = async (force: boolean = false) => {
   }
 
   try {
-    summary.value = await gptStore.run({
+    summary.value = await assistantStore.run({
       systemPrompt: systemPrompt.value,
       userPrompt: userPrompt.value
     })

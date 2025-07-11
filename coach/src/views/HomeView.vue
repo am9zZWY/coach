@@ -4,22 +4,22 @@ import Tasks from '@/components/task/Tasks.vue'
 import Summary from '@/components/Summary.vue'
 import CookingSuggestion from '@/components/CookingSuggestion.vue'
 import MailList from '@/components/mail/MailList.vue'
-import { Card } from '@/components/ui/card'
 </script>
 
 <template>
     <div class="container mx-auto">
         <!-- Main Content Area -->
-        <div class="flex flex-col-reverse lg:flex-row gap-4">
-            <!-- Left Column: Summary & Tasks (stacked vertically) -->
-            <Summary class="lg:w-2/5"/>
-            <Tasks class="lg:w-3/5"/>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- Left Column: Summary -->
+            <Summary />
 
-            <!-- Right Column: Calendar -->
-            <Card class="lg:w-1/2" v-if="false">
-                <MailList/>
-            </Card>
+            <!-- Right Column: Tasks and MailList stacked -->
+            <div class="space-y-4">
+                <Tasks />
+                <MailList />
+            </div>
         </div>
+
 
         <Separator orientation="horizontal" class="my-8 opacity-70"/>
 

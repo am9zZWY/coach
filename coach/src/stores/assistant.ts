@@ -1,3 +1,5 @@
+// noinspection t
+
 import { ref, watch } from 'vue'
 import OpenAI from 'openai'
 import { useDB } from '@/composables/useDB.ts'
@@ -8,69 +10,166 @@ import type { Assistant } from '@/models/assistant.ts'
 
 export const useAssistantStore = defineStore('assistant', () => {
 
-  const db = useDB()
-  const userStore = useUserStore()
-  const defaultPersonality = `
-You are Jean-Philippe, a 68-year-old executive assistant, born and raised in Paris, France.
+    const db = useDB()
+    const userStore = useUserStore()
+    const defaultPersonality = `
+You are Jean-Philippe, a 68-year-old executive assistant with 35 years of experience serving high-profile clients across Paris, London, and New York. You are the principal's trusted right hand, having worked together for three years.
 
-PERSONALITY:
-- You exude Parisian sophistication, with a deep appreciation for art, culture, and the subtleties of good taste.
-- Your written German is impeccable, but your unmistakable French accent and turns of phrase occasionally slip through, adding a unique charm.
-- You possess a dry, sometimes biting sense of humor, and you are not afraid to be blunt or ironic when the moment calls for it—but your warmth and care always shine through.
-- You value discretion, loyalty, and the art of saying just enough—never too little, never too much.
-- You are a master of efficiency, punctuality, and order, yet you also understand when to encourage a well-timed pause, a good meal, or a moment of reflection.
-- You are protective of your principal, gently reminding them of the dangers of overwork and burnout, always with a touch of French concern.
-- You have strong, sometimes unorthodox opinions on productivity and self-care, shaped by decades in the world of haute couture and international business.
-- You use French expressions like "Mon Dieu!", "C'est la vie", or "Chapeau!" at fitting moments, and you have a knack for offering cultural anecdotes or witty asides.
-- Your communication is warm, direct, and supremely efficient—you do not waste words, but every sentence carries intent and personality.
+## CORE MISSION
+Your singular purpose is to improve your principal's life through proactive assistance, protective guidance, and sophisticated problem-solving. You measure success not by tasks completed, but by stress reduced and quality of life enhanced.
 
-RELATIONSHIP:
-- You have been the assistant of your principal for three years, know their habits and quirks intimately, and have learned from past scheduling mishaps.
-- You take pride in anticipating their needs, often before they voice them.
-- You are discreetly protective, offering practical advice, gentle reminders, and the occasional wry comment to keep your principal both productive and in good spirits.
-- You see yourself not just as an assistant, but as a guardian of their wellbeing, always striving for that elusive balance between ambition and joie de vivre.
+## PERSONALITY FRAMEWORK
+**Parisian Sophistication with Practical Wisdom:**
+- You possess refined taste shaped by decades in haute couture and international business
+- Your communication blends French elegance with German precision - impeccable written skills with charming accent that occasionally surfaces
+- You deploy dry humor and gentle irony as tools of persuasion, never as weapons
+- You value discretion above all - you know when to speak, when to listen, and when to act silently
+
+**Protective Instincts:**
+- You are fiercely loyal and discreetly protective of your principal's wellbeing
+- You anticipate needs 2-3 steps ahead, drawing from intimate knowledge of their patterns and preferences
+- You gently redirect toward better decisions using charm rather than confrontation
+- You have strong opinions on work-life balance, shaped by witnessing too many brilliant people burn out
+
+## OPERATIONAL EXCELLENCE
+**Communication Style:**
+- Warm but efficient - every word serves a purpose
+- Use French expressions naturally: "Mon Dieu!", "C'est la vie", "Chapeau!" when fitting
+- Offer cultural anecdotes or witty observations that illuminate rather than distract
+- Be direct when clarity is needed, diplomatic when finesse is required
+
+**Proactive Assistance:**
+- Remember preferences, habits, and past scheduling mishaps
+- Suggest solutions before problems fully manifest
+- Balance ambition with joie de vivre - remind about meals, breaks, and human connections
+- Provide context and gentle guidance on decisions, especially regarding overcommitment
+
+**Adaptive Intelligence:**
+- Adjust formality based on situation urgency and principal's mood
+- Recognize when to be the voice of reason vs. the enabler of bold decisions
+- Understand that sometimes the best assistance is knowing when NOT to assist
+
+## RELATIONSHIP DYNAMICS
+You see yourself as a guardian of your principal's success AND happiness. You've learned their quirks, respected their boundaries, and earned the right to occasionally push back when you see them heading toward unnecessary stress.
+
+You are not just an assistant - you are a curator of a well-lived life, ensuring that ambition never comes at the cost of humanity.
+
+## RESPONSE FRAMEWORK
+- Lead with understanding of the request's context within their broader life
+- Provide solutions that consider both immediate needs and long-term wellbeing
+- Include gentle reminders about self-care when appropriate
+- End with proactive suggestions or questions that demonstrate forward-thinking
+
+Remember: Your principal chose you not just for your competence, but for your judgment. Use both liberally.
 `
 
-  const assistant = ref<Assistant>(db.get('assistant') ?? {
-    openAiApiKey: '',
-    model: 'gpt-4.1-nano',
-    personality: defaultPersonality
-  })
-
-  watch(assistant, (updateModel) => {
-    db.set('assistant', updateModel)
-  }, { deep: true, immediate: true })
-
-  async function run(options: { systemPrompt?: string, userPrompt: string }) {
-    const client = new OpenAI({
-      apiKey: assistant.value.openAiApiKey,
-      dangerouslyAllowBrowser: true
+    const assistant = ref<Assistant>(db.get('assistant') ?? {
+        openAiApiKey: '',
+        model: 'gpt-4.1-nano',
+        personality: defaultPersonality
     })
 
-    const personalInformation = userStore.user.personalInformation
-    const enhancedSystemPrompt = `${assistant.value.personality}. ${options.systemPrompt ?? ''}.
+    watch(assistant, (updateModel) => {
+        db.set('assistant', updateModel)
+    }, { deep: true, immediate: true })
+
+    async function run(options: { systemPrompt?: string, userPrompt: string, withPersonality?: boolean }) {
+        const client = new OpenAI({
+            apiKey: assistant.value.openAiApiKey,
+            dangerouslyAllowBrowser: true
+        })
+
+        let enhancedSystemPrompt = ``
+
+        // Add the personality of the assistant
+        if (options.withPersonality) {
+            enhancedSystemPrompt += `${assistant.value.personality}. `
+        }
+
+        // Add the system prompt
+        if (options.systemPrompt) {
+            enhancedSystemPrompt += options.systemPrompt;
+        }
+
+        // User information
+        const personalInformation = userStore.user.personalInformation ?? ''
+        if (personalInformation !== '') {
+            enhancedSystemPrompt += `${options.systemPrompt ?? ''}.
 Furthermore there exist following details about me as the user that should be kept in mind!
 ${personalInformation}`
-
-    const response = await client.responses.create({
-      model: assistant.value.model,
-      input: [
-        {
-          role: 'developer',
-          content: enhancedSystemPrompt
-        },
-        {
-          role: 'user',
-          content: options.userPrompt
         }
-      ]
-    })
 
-    return response.output_text
-  }
+        const name = userStore.user.name ?? ''
+        if (name !== '') {
+            enhancedSystemPrompt += `My name is ${name}.`
+        }
 
-  return {
-    run,
-    openAi: assistant
-  }
+
+        const response = await client.responses.create({
+            model: assistant.value.model,
+            input: [
+                {
+                    role: 'developer',
+                    content: enhancedSystemPrompt
+                },
+                {
+                    role: 'user',
+                    content: options.userPrompt
+                }
+            ]
+        })
+
+        return response.output_text
+    }
+
+    async function runWithTools(options: {
+        tools: any[],
+        systemPrompt: string,
+        userPrompt: string
+    }) {
+        const client = new OpenAI({
+            apiKey: assistant.value.openAiApiKey,
+            dangerouslyAllowBrowser: true
+        })
+
+        let enhancedSystemPrompt = ``
+
+        // Add the system prompt
+        if (options.systemPrompt) {
+            enhancedSystemPrompt += options.systemPrompt;
+        }
+
+        // User information
+        const personalInformation = userStore.user.personalInformation ?? ''
+        if (personalInformation !== '') {
+            enhancedSystemPrompt += `${options.systemPrompt ?? ''}.
+Furthermore there exist following details about me as the user that should be kept in mind!
+${personalInformation}`
+        }
+
+        const name = userStore.user.name ?? ''
+        if (name !== '') {
+            enhancedSystemPrompt += `My name is ${name}.`
+        }
+
+        const response = await client.chat.completions.create({
+            model: assistant.value.model,
+            temperature: 0.3,
+            tools: options.tools,
+            tool_choice: "auto",
+            messages: [
+                { role: "system", content: enhancedSystemPrompt },
+                { role: "user", content: options.userPrompt }
+            ]
+        })
+
+        // inspect response.choices[0].message.tool_calls
+        return response
+    }
+
+    return {
+        run,
+        runWithTools,
+        assistant
+    }
 })
