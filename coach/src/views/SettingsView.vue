@@ -13,7 +13,7 @@ import { useAssistantStore } from '@/stores/assistant.ts'
 import { Textarea } from '@/components/ui/textarea'
 import { useUserStore } from '@/stores/user.ts'
 import { useSyncStore } from '@/stores/sync.ts'
-import { Badge } from '@/components/ui/badge'
+import copyTextToClipboard from "@uiw/copy-to-clipboard";
 
 const userStore = useUserStore()
 const { user } = storeToRefs(userStore)
@@ -67,6 +67,10 @@ function addClient() {
 function removeClient(clientId: string) {
     knownClients.value = knownClients.value.filter((c: string) => c !== clientId)
     toast('Client entfernt')
+}
+
+function copyClientId() {
+    copyTextToClipboard(syncStore.clientId)
 }
 </script>
 
@@ -339,8 +343,11 @@ function removeClient(clientId: string) {
                             </div>
                             <p class="text-sm text-muted-foreground">
                                 Deine Client ID lautet:
-                                <Badge variant="outline">{{ syncStore.clientId }}</Badge>
-                            </p>
+                                <Button variant="outline" class="whitespace-normal break-words text-left p-5 ml-2"
+                                        @click="copyClientId()">
+                                    {{ syncStore.clientId }}
+                                </Button>
+                            </div>
                         </form>
 
                         <Separator/>
@@ -361,6 +368,7 @@ function removeClient(clientId: string) {
                     </div>
                 </CardContent>
                 <CardFooter>
+                <CardFooter v-if="knownClients.length > 0">
                     <Button @click="syncStore.syncAll(true)">
                         <FolderSync class="h-4 w-4 mr-2"/>
                         Synchronisieren

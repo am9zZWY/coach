@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.6",
+    "@uiw/copy-to-clipboard": "^1.0.17",
     "@vueuse/core": "^13.2.0",
     "@vueuse/integrations": "^13.1.0",
     "class-variance-authority": "^0.7.1",
