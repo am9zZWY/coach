@@ -113,6 +113,18 @@ function copyClientId() {
                                 rows="3"
                             />
                         </div>
+
+                        <Separator/>
+
+                        <div class="space-y-2">
+                            <Label for="personalInformation">Mail Persönlichkeit</Label>
+                            <Textarea
+                                id="personalInformation"
+                                v-model="user.mailPersonality"
+                                placeholder="Passe E-Mails an dich an"
+                                rows="3"
+                            />
+                        </div>
                     </div>
                 </CardContent>
             </Card>

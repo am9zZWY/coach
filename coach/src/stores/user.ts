@@ -10,6 +10,7 @@ export const useUserStore = defineStore('user', () => {
   const user = ref<User>(db.get('user') ?? {
     name: '',
     personalInformation: '',
+    mailPersonality: ''
   })
   watch(user, (updatedUser) => {
     db.set('user', updatedUser)
