@@ -19,7 +19,7 @@ const userStore = useUserStore()
 const { user } = storeToRefs(userStore)
 
 const assistantStore = useAssistantStore()
-const { openAi } = storeToRefs(assistantStore)
+const { assistant } = storeToRefs(assistantStore)
 
 const weatherStore = useWeatherStore()
 const { location, weather } = storeToRefs(weatherStore)
@@ -27,14 +27,14 @@ const { location, weather } = storeToRefs(weatherStore)
 const syncStore = useSyncStore()
 const { knownClients } = storeToRefs(syncStore)
 
-const openAiApiKeyInput = ref<string>(openAi.value.openAiApiKey)
+const openAiApiKeyInput = ref<string>(assistant.value.openAiApiKey)
 const weatherApiKeyInput = ref<string>(weather.value.weatherApiKey)
 const locationInput = ref<string>(location.value)
 const clientIdInput = ref<string>('')
 
 
 function updateOpenAiApiKey() {
-    openAi.value.openAiApiKey = openAiApiKeyInput.value
+    assistant.value.openAiApiKey = openAiApiKeyInput.value
     toast('API-Schlüssel aktualisiert', {
         description: 'Dein OpenAI API-Schlüssel wurde erfolgreich gespeichert.'
     })
