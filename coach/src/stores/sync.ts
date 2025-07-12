@@ -1,3 +1,5 @@
+// noinspection t
+
 import { onUnmounted, ref, watch } from 'vue'
 import type { DataConnection } from 'peerjs'
 import Peer from 'peerjs'
@@ -11,9 +13,9 @@ export const useSyncStore = defineStore('sync', () => {
   const db = useDB()
   const { lastUpdated } = storeToRefs(db)
 
-  const clientId = ref<string>(localStorage.getItem('client') || `life-coach-${uuidv4()}`)
+  const clientId = ref<string>(localStorage.getItem('client') ?? `life-coach-${uuidv4()}`)
   localStorage.setItem('client', clientId.value)
-  const knownClients = ref<string[]>(JSON.parse(localStorage.getItem('known-clients') || '[]'))
+  const knownClients = ref<string[]>(JSON.parse(localStorage.getItem('known-clients') ?? '[]'))
   watch(knownClients, kc => localStorage.setItem('known-clients', JSON.stringify(kc)), { deep: true, immediate: true })
 
   const connections = ref<Connections>({})
@@ -42,7 +44,7 @@ export const useSyncStore = defineStore('sync', () => {
     if (trial >= 3 || targetId === clientId.value) {
       return
     }
-    if (connections.value[targetId] && connections.value[targetId].open) {
+    if (connections?.value[targetId]?.open ?? false) {
       return
     }
     try {
@@ -60,7 +62,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   function sync(targetId: string, force = false) {
     const conn = connections.value[targetId]
-    if (conn && conn.open) {
+    if (conn?.open ?? false) {
       conn.send(db.toString(force))
     }
   }

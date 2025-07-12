@@ -5,51 +5,68 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMailStore } from "@/stores/mail.ts";
 import { storeToRefs } from "pinia";
+import { Separator } from "@/components/ui/separator";
+import { ListTodo, Sparkles, TableOfContents } from "lucide-vue-next";
+import { useTaskStore } from "@/stores/task.ts";
+import { Input } from "@/components/ui/input";
 
 
 const mailStore = useMailStore()
-const { mails, selectedMails } = storeToRefs(mailStore)
+const { mails, filteredMails, mailFilter, selectedMails } = storeToRefs(mailStore)
+
+const taskStore = useTaskStore()
 
 </script>
 
 <template>
     <Card class="shadow-md rounded-xl">
         <CardHeader>
-            <CardTitle class="flex items-center gap-2">
-                Mails
+            <CardTitle>
+                Mails ({{ Object.values(mails).length }})
             </CardTitle>
             <div class="max-w-5xl flex gap-2">
-                <Button @click="() => mailStore.selectAll()" variant="outline" size="sm"
-                        v-if="Object.entries(selectedMails).filter(entry => entry[1]).length !== Object.values(mails).length">
+                <Button @click="() => mailStore.selectAll()" variant="outline"
+                        v-if="selectedMails.length !== filteredMails.length">
                     Select All
                 </Button>
 
-                <Button @click="() => mailStore.deselectAll()" variant="outline" size="sm"
-                        v-if="Object.entries(selectedMails).some(entry => entry[1])">
-                    Deselect All
+                <Button @click="() => mailStore.deselectAll()" variant="outline"
+                        v-if="selectedMails.length > 0">
+                    Deselect All ({{ selectedMails.length }})
                 </Button>
 
-                <Button @click="() => mailStore.triageMails()" variant="outline" size="sm">
-                    Triage Mails
-                </Button>
-
-                <Button @click="() => mailStore.summarizeMails()" variant="outline" size="sm">
-                    Generate Summaries
-                </Button>
-
-
+                <Input v-model="mailFilter"/>
             </div>
+
+            <template v-if="selectedMails.length > 0">
+                <Separator orientation="horizontal"/>
+                <div class="flex gap-2 flex-wrap">
+                    <Button @click="() => mailStore.triageMails()" variant="default" size="sm">
+                        <Sparkles/>
+                        Triage
+                    </Button>
+
+                    <Button @click="() => mailStore.summarizeMails()" variant="default" size="sm">
+                        <TableOfContents/>
+                        Generate Summaries
+                    </Button>
+
+                    <Button @click="() => taskStore.generateTasksFromMail()" variant="default" size="sm">
+                        <ListTodo/>
+                        Generate Tasks
+                    </Button>
+                </div>
+            </template>
         </CardHeader>
         <CardContent>
             <ScrollArea class="flex h-[32rem]">
                 <div class="flex-1 flex flex-col gap-2 pt-0">
                     <TransitionGroup name="list" appear>
-                        <div
-                            v-for="mail of Object.values(mails)" :key="mail.id"
-                            class="flex flex-col items-start gap-2 rounded-lg border-b border-border/40 border p-3 text-left text-sm transition-all hover:bg-accent"
+                        <template
+                            v-for="mail of filteredMails" :key="mail.id"
                         >
-                            <Mail :item="mail" v-model="mailStore.selectedMails[mail.id]"/>
-                        </div>
+                            <Mail :mail="mail" v-model:selected="mailStore.selectedMailMap[mail.id]"/>
+                        </template>
                     </TransitionGroup>
                 </div>
             </ScrollArea>

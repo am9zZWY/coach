@@ -21,20 +21,20 @@ const loading = ref(false)
 const currentDate = useDateFormat(new Date(), 'dddd, D. MMMM YYYY')
 
 const timeOfDay = computed(() => {
-  const hour = new Date().getHours()
-  if (hour >= 5 && hour < 11) {
-    return 'morning'
-  }
-  if (hour >= 11 && hour < 13) {
-    return 'lunch'
-  }
-  if (hour >= 13 && hour < 18) {
-    return 'afternoon'
-  }
-  if (hour >= 18 && hour < 23) {
-    return 'evening'
-  }
-  return 'night'
+    const hour = new Date().getHours()
+    if (hour >= 5 && hour < 11) {
+        return 'morning'
+    }
+    if (hour >= 11 && hour < 13) {
+        return 'lunch'
+    }
+    if (hour >= 13 && hour < 18) {
+        return 'afternoon'
+    }
+    if (hour >= 18 && hour < 23) {
+        return 'evening'
+    }
+    return 'night'
 })
 
 const systemPrompt = computed(() => `FORMATIERUNG:
@@ -50,14 +50,18 @@ CURRENT MODE: ${timeOfDay.value.toUpperCase()}
 
 // Update user prompt based on time of day
 const userPrompt = computed(() => {
-  const baseContext = `Es ist ${currentDate.value} und das Wetter ist ${weatherStore.weather.temperature}°C in ${weatherStore.weather.location}.`
-  const tasksContext = flatTasks.value.length > 0
-    ? `Meine aktuellen Aufgaben: ${taskStore.toString()}`
-    : 'Ich habe momentan keine Aufgaben geplant.'
+    let baseContext = `Es ist ${currentDate.value}`
+    if (weatherStore.weather.location !== '') {
+        baseContext += ` und das Wetter ist ${weatherStore.weather.temperature}°C in ${weatherStore.weather.location}.`
+    }
 
-  switch (timeOfDay.value) {
-    case 'morning':
-      return `Bonjour! ${baseContext}
+    const tasksContext = flatTasks.value.length > 0
+        ? `Meine aktuellen Aufgaben: ${taskStore.toString()}`
+        : 'Ich habe momentan keine Aufgaben geplant.'
+
+    switch (timeOfDay.value) {
+        case 'morning':
+            return `Bonjour! ${baseContext}
 
 Als mein vertrauter persönlicher Assistent seit 3 Jahren, bitte überprüfe meinen bevorstehenden Tag mit deiner charakteristischen französischen Effizienz. Ich brauche:
 1. Eine kurze, personalisierte Morgengrußformel, die Bezug auf das Wetter oder meinen Zeitplan nimmt
@@ -67,8 +71,8 @@ Als mein vertrauter persönlicher Assistent seit 3 Jahren, bitte überprüfe mei
 
 ${tasksContext}`
 
-    case 'lunch':
-      return `Bon midi! ${baseContext}
+        case 'lunch':
+            return `Bon midi! ${baseContext}
 
 Es ist Mittagszeit, und ich könnte deine kulinarische Expertise gebrauchen. Bitte:
 1. Schlage ein anspruchsvolles, aber praktisches Mittagsrezept vor, das dich beeindrucken würde
@@ -77,8 +81,8 @@ Es ist Mittagszeit, und ich könnte deine kulinarische Expertise gebrauchen. Bit
 
 ${tasksContext}`
 
-    case 'afternoon':
-      return `Bon après-midi! ${baseContext}
+        case 'afternoon':
+            return `Bon après-midi! ${baseContext}
 
 Es ist Nachmittag – Zeit für eine kleine Stärkung oder eine kreative Pause. Bitte:
 1. Empfiehl mir einen raffinierten, aber unkomplizierten Snack oder ein Getränk, das am Nachmittag typisch ist und deinem französischen Geschmack entspricht
@@ -89,8 +93,8 @@ Es ist Nachmittag – Zeit für eine kleine Stärkung oder eine kreative Pause. 
 ${tasksContext}`
 
 
-    case 'evening':
-      return `Bonsoir! ${baseContext}
+        case 'evening':
+            return `Bonsoir! ${baseContext}
 
 Der Arbeitstag neigt sich dem Ende zu. Bitte teile mit:
 1. Entweder einen einfachen Rezeptvorschlag für das morgige Mittagessen oder eine Filmempfehlung, die meinem Geschmack entspricht
@@ -99,8 +103,8 @@ Der Arbeitstag neigt sich dem Ende zu. Bitte teile mit:
 
 ${tasksContext}`
 
-    case 'night':
-      return `Bonne nuit! ${baseContext}
+        case 'night':
+            return `Bonne nuit! ${baseContext}
 
 Bevor ich mich für den Abend zurückziehe, bitte stelle bereit:
 1. Einen kurzen Überblick über den morgigen Zeitplan
@@ -108,79 +112,80 @@ Bevor ich mich für den Abend zurückziehe, bitte stelle bereit:
 3. Eine geistreiche französische Beobachtung über Erholung oder Produktivität
 
 ${tasksContext}`
-  }
+    }
 })
 
 const db = useDB()
 const generateSummary = async (force: boolean = false) => {
-  loading.value = true
-  const CACHE_DURATION_MS = 12 * 60 * 60 * 1000 // 12 hours
-  const cachedSummary = db.get('assistant-summary') as {
-    summary: string,
-    date: string,
-  }
-  console.log(cachedSummary)
-  if (
-    !force &&
-    cachedSummary &&
-    new Date(cachedSummary.date).getTime() + CACHE_DURATION_MS > Date.now()
-  ) {
-    summary.value = cachedSummary.summary
-    loading.value = false
-    return
-  }
+    loading.value = true
+    const CACHE_DURATION_MS = 12 * 60 * 60 * 1000 // 12 hours
+    const cachedSummary = db.get('assistant-summary') as {
+        summary: string,
+        date: string,
+    }
+    console.log(cachedSummary)
+    if (
+        !force &&
+        cachedSummary &&
+        new Date(cachedSummary.date).getTime() + CACHE_DURATION_MS > Date.now()
+    ) {
+        summary.value = cachedSummary.summary
+        loading.value = false
+        return
+    }
 
-  try {
-    summary.value = await assistantStore.run({
-      systemPrompt: systemPrompt.value,
-      userPrompt: userPrompt.value
-    })
-    db.set('assistant-summary', {
-      summary: summary.value,
-      date: new Date().toISOString()
-    })
-  } catch (error) {
-    console.error('Failed to generate summary:', error)
-    summary.value = 'Failed to generate summary. Please try again.'
-  } finally {
-    loading.value = false
-  }
+    try {
+        summary.value = await assistantStore.run({
+            systemPrompt: systemPrompt.value,
+            userPrompt: userPrompt.value
+        })
+        db.set('assistant-summary', {
+            summary: summary.value,
+            date: new Date().toISOString()
+        })
+    } catch (error) {
+        console.error('Failed to generate summary:', error)
+        summary.value = 'Failed to generate summary. Please try again.'
+    } finally {
+        loading.value = false
+    }
 }
 
 onMounted(() => {
-  generateSummary()
+    generateSummary()
 })
 </script>
 
 <template>
-  <Card class="shadow-md rounded-xl">
-    <CardHeader>
-      <CardTitle class="flex items-center gap-2">
-        <MessageSquareQuote />
-        Une Note von Jean-Philippe
-      </CardTitle>
-      <CardDescription class="flex items-center justify-between flex-wrap gap-2 sm:gap-4 w-full md:w-auto">
-        <div class="flex flex-wrap gap-2">
-          <Badge variant="outline">{{ currentDate }}</Badge>
-          <Badge variant="secondary">{{ weatherStore.weather.temperature
-            }}°C in {{ weatherStore.weather.location }}
-          </Badge>
-        </div>
-      </CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div v-if="loading" class="flex justify-center items-center py-8">
-        <span class="loader" />
-        <span class="font-medium">Jean-Philippe denkt...</span>
-      </div>
-      <div v-else-if="summary" class="whitespace-pre-line text-base leading-relaxed">
-        <div class="prose dark:prose-invert max-w-none" v-html="summary"></div>
-      </div>
-    </CardContent>
-    <CardFooter>
-      <Button @click="() => generateSummary(true)" variant="outline" size="sm">
-        <RotateCcw />
-      </Button>
-    </CardFooter>
-  </Card>
+    <Card class="shadow-md rounded-xl">
+        <CardHeader>
+            <CardTitle class="flex items-center gap-2">
+                <MessageSquareQuote/>
+                Une Note von Jean-Philippe
+            </CardTitle>
+            <CardDescription class="flex items-center justify-between flex-wrap gap-2 sm:gap-4 w-full md:w-auto">
+                <div class="flex flex-wrap gap-2">
+                    <Badge variant="outline">{{ currentDate }}</Badge>
+                    <Badge variant="secondary" v-if="weatherStore.weather.location">{{
+                            weatherStore.weather.temperature
+                        }}°C in {{ weatherStore.weather.location }}
+                    </Badge>
+                </div>
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <div v-if="loading" class="flex justify-center items-center py-8">
+                <span class="loader"/>
+                <span class="font-medium">Jean-Philippe denkt...</span>
+            </div>
+            <div v-else-if="summary" class="whitespace-pre-line text-base leading-relaxed">
+                <div class="prose dark:prose-invert max-w-none" v-html="summary"></div>
+            </div>
+        </CardContent>
+        <CardFooter>
+            <Button @click="() => generateSummary(true)" variant="outline" size="sm">
+                <RotateCcw/>
+            </Button>
+        </CardFooter>
+    </Card>
 </template>

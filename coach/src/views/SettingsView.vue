@@ -353,7 +353,7 @@ function copyClientId() {
                                     Hinzufügen
                                 </Button>
                             </div>
-                            <p class="text-sm text-muted-foreground">
+                            <div class="text-sm text-muted-foreground">
                                 Deine Client ID lautet:
                                 <Button variant="outline" class="whitespace-normal break-words text-left p-5 ml-2"
                                         @click="copyClientId()">
@@ -362,24 +362,25 @@ function copyClientId() {
                             </div>
                         </form>
 
-                        <Separator/>
-
-                        <div v-if="knownClients.length > 0" class="space-y-2">
-                            <Label>Deine Clients:</Label>
-                            <ul class="space-y-2">
-                                <li v-for="clientId in knownClients" :key="clientId"
-                                    class="flex items-center justify-between rounded-md border p-2">
-                                    <span class="text-sm break-all pr-2">{{ clientId }}</span>
-                                    <Button variant="destructive" size="sm" class="shrink-0"
-                                            @click="removeClient(clientId)">
-                                        Entfernen
-                                    </Button>
-                                </li>
-                            </ul>
-                        </div>
+                        <template v-if="knownClients.length > 0">
+                            <Separator/>
+                            <div class="space-y-2">
+                                <Label>Deine Clients:</Label>
+                                <ul class="space-y-2">
+                                    <li v-for="clientId in knownClients" :key="clientId"
+                                        class="flex items-center justify-between rounded-md border p-2">
+                                        <span class="text-sm break-all pr-2">{{ clientId }}</span>
+                                        <Button variant="destructive" size="sm" class="shrink-0"
+                                                @click="removeClient(clientId)">
+                                            Entfernen
+                                        </Button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </template>
                     </div>
                 </CardContent>
-                <CardFooter>
+
                 <CardFooter v-if="knownClients.length > 0">
                     <Button @click="syncStore.syncAll(true)">
                         <FolderSync class="h-4 w-4 mr-2"/>

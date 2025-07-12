@@ -3,15 +3,17 @@
 import { useDB } from "@/composables/useDB.ts";
 import { defineStore, storeToRefs } from "pinia";
 import { useAssistantStore } from "@/stores/assistant.ts";
-import { ref, watch } from "vue";
+import { computed, ref, toRef, watch } from "vue";
 import type { MailType } from "@/models/mailType.ts";
+import { useUserStore } from "@/stores/user.ts";
 
 export const useMailStore = defineStore('mails', () => {
         const db = useDB();
         const { lastUpdated } = storeToRefs(db)
         const assistantStore = useAssistantStore()
+        const userStore = useUserStore()
 
-        // Fetch from API
+        // Fetch mails from API
         const mails = ref<{ [id: string]: MailType }>(db.get('mails') ?? {});
         watch(mails, () => {
             db.set('mails', mails.value)
@@ -20,18 +22,40 @@ export const useMailStore = defineStore('mails', () => {
             mails.value = db.get('mails') ?? {}
         })
 
+        // Filtered mails
+        const mailFilter = toRef('')
+        const filteredMails = computed(() => {
+            const filter = mailFilter.value.toLocaleLowerCase().trim()
+
+            if (filter === '') {
+                return Object.values(mails.value)
+            }
+
+            return Object.values(mails.value).filter((mail) => {
+                return mail.from.toLowerCase().includes(filter) ||
+                    mail.to.toLowerCase().includes(filter) ||
+                    mail.subject.toLowerCase().includes(filter) ||
+                    mail.labels.includes(filter)
+            })
+        })
+
         // For actions track which mails are selected
-        const selectedMails = ref<{ [id: string]: boolean }>({});
+        const selectedMailMap = ref<{ [id: string]: boolean }>({});
+        const selectedMails = computed(() =>
+            Object.entries(selectedMailMap.value)
+                .filter(([_, isSelected]) => isSelected)
+                .map(([mailId]) => mails.value[mailId])
+        )
 
         function selectAll() {
             for (const mail of Object.values(mails.value)) {
-                selectedMails.value[mail.id] = true;
+                selectedMailMap.value[mail.id] = true;
             }
         }
 
         function deselectAll() {
             for (const mail of Object.values(mails.value)) {
-                selectedMails.value[mail.id] = false;
+                selectedMailMap.value[mail.id] = false;
             }
         }
 
@@ -132,14 +156,15 @@ export const useMailStore = defineStore('mails', () => {
 
             Rules:
             - Write ONLY the email content itself
-            - Start directly with the greeting (e.g., "Hi John,")
             - Never use phrases like "Certainly", "I'd be happy to", "Here's a draft"
             - Match the sender's tone and formality
-            - Be concise and action-oriented
             - End with appropriate sign-off
             - If critical info is missing, state it directly in the email body
             
-            Output exactly what should be sent, nothing more.`,
+            Output exactly what should be sent, nothing more.
+            
+            Senders personality that MUST be matched: ${userStore.user.mailPersonality}.
+            `,
                     userPrompt: `Original email from ${mail.from} to respond to:
                                 SUBJECT: ${mail.subject}
                                 BODY: ${mail.body}`,
@@ -223,7 +248,7 @@ ${mail.body}
 
 
         async function summarizeMails() {
-            const selectedEntries = Object.entries(selectedMails.value)
+            const selectedEntries = Object.entries(selectedMailMap.value)
                 .filter(([_, isSelected]) => isSelected)
                 .map(([mailId]) => mailId);
 
@@ -240,7 +265,7 @@ ${mail.body}
         }
 
         async function generateReplies() {
-            const selectedEntries = Object.entries(selectedMails.value)
+            const selectedEntries = Object.entries(selectedMailMap.value)
                 .filter(([_, isSelected]) => isSelected)
                 .map(([mailId]) => mailId);
 
@@ -257,7 +282,7 @@ ${mail.body}
         }
 
         async function triageMails() {
-            const selectedEntries = Object.entries(selectedMails.value)
+            const selectedEntries = Object.entries(selectedMailMap.value)
                 .filter(([_, isSelected]) => isSelected)
                 .map(([mailId]) => mailId);
 
@@ -305,11 +330,19 @@ ${mail.body}
         return {
             mails,
             selectedMails,
+            selectedMailMap,
+            mailFilter,
+            filteredMails,
             selectAll,
             deselectAll,
+
+            // Assistant related
             summarizeMails,
+            summarize,
             generateReplies,
+            generateReply,
             triageMails,
+            triage
         }
     }
 )
