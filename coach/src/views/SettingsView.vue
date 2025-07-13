@@ -14,9 +14,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { useUserStore } from '@/stores/user.ts'
 import { useSyncStore } from '@/stores/sync.ts'
 import copyTextToClipboard from "@uiw/copy-to-clipboard";
+import { useAPI } from "@/composables/useApi.ts";
+import { Switch } from "@/components/ui/switch";
 
 const userStore = useUserStore()
 const { user } = storeToRefs(userStore)
+
+const API = useAPI()
+const { api } = storeToRefs(API)
 
 const assistantStore = useAssistantStore()
 const { assistant } = storeToRefs(assistantStore)
@@ -123,6 +128,39 @@ function copyClientId() {
                                 v-model="user.mailPersonality"
                                 placeholder="Passe E-Mails an dich an"
                                 rows="3"
+                            />
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- API Card -->
+            <Card>
+                <CardHeader class="space-y-1">
+                    <CardTitle class="flex items-center gap-2">
+                        <Settings class="h-5 w-5 shrink-0"/>
+                        API Einstellungen
+                    </CardTitle>
+                    <CardDescription>
+                        Konfiguriere deine API-Verbindung
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div class="space-y-6">
+                        <div class="space-y-2">
+                            <Switch id="airplane-mode" v-model="api.enableAPI"/>
+                            <Label for="airplane-mode">API Einschalten</Label>
+                        </div>
+
+                        <Separator/>
+
+                        <div class="space-y-2">
+                            <Label for="apiKey">API URL</Label>
+                            <Input
+                                id="apiKey"
+                                v-model="api.apiURL"
+                                placeholder="Deine API URL"
+                                type="text"
                             />
                         </div>
                     </div>
