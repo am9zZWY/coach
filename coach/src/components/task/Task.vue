@@ -220,8 +220,8 @@ const saveEditingTitle = () => {
                 <Button
                     variant="outline"
                     size="icon"
-                    @click="(e) => {
-            const input = e.target.previousElementSibling as HTMLInputElement;
+                    @click="(e: Event) => {
+            const input = (e.target as Element).previousElementSibling as HTMLInputElement;
             if (input.value.trim()) {
               taskStore.addFromTitle(input.value, task.id);
               input.value = '';
