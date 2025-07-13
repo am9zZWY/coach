@@ -6,9 +6,11 @@ import { useAssistantStore } from "@/stores/assistant.ts";
 import { computed, ref, toRef, watch } from "vue";
 import type { MailType } from "@/models/mailType.ts";
 import { useUserStore } from "@/stores/user.ts";
+import { useAPI } from "@/composables/useApi.ts";
 
 export const useMailStore = defineStore('mails', () => {
         const db = useDB();
+        const api = useAPI()
         const { lastUpdated } = storeToRefs(db)
         const assistantStore = useAssistantStore()
         const userStore = useUserStore()
@@ -299,18 +301,12 @@ ${mail.body}
         }
 
         function fetchMails() {
-            const headers = new Headers()
-
-            fetch('http://localhost:8000/mail', {
-                headers
-            })
-                .then((res) => {
-                    if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`)
-                    }
-                    return res.json()
-                })
+            api.apiCall<MailType[]>('mail')
                 .then((fetchedMails) => {
+                    if (!fetchedMails) {
+                        return;
+                    }
+
                     for (const mail of fetchedMails) {
                         if (!(mail.id in mails.value)) {
                             mails.value[mail.id] = mail
@@ -319,9 +315,6 @@ ${mail.body}
                         }
                     }
                     db.set(`mails`, mails);
-                })
-                .catch((error) => {
-                    console.error('Error fetching mails:', error)
                 })
         }
 
