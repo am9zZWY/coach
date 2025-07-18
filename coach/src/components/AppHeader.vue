@@ -52,7 +52,7 @@ const { weather } = storeToRefs(weatherStore)
         <nav class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <!-- Header Section with Greeting -->
             <div>
-                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">
+                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight font-serif">
                     <router-link to="/">{{ greeting }}</router-link>
                 </h1>
             </div>

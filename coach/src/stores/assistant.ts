@@ -6,7 +6,45 @@ import { useDB } from '@/composables/useDB.ts'
 import { defineStore } from 'pinia'
 import { useUserStore } from '@/stores/user.ts'
 import type { Assistant } from '@/models/assistant.ts'
+import { now } from "@vueuse/core";
+import type {
+    ResponseCreateParamsBase,
+    ResponseCreateParamsNonStreaming,
+    ResponseFormatTextJSONSchemaConfig
+} from "openai/resources/responses/responses";
+import { z } from 'zod'
+import { type AutoParseableTextFormat, makeParseableTextFormat } from "openai/lib/parser";
 
+
+type RunOptions = {
+    systemPrompt?: string;
+    userPrompt: string;
+    withPersonality?: boolean;
+    jsonSchema?: z.ZodType;              // bestimmt das Rückgabeformat
+};
+
+/**
+ * https://github.com/openai/openai-node/issues/1576#issuecomment-3056734414
+ * @param zodObject
+ * @param name
+ * @param props
+ */
+export function zodTextFormat<ZodInput extends z.ZodType>(
+    zodObject: ZodInput,
+    name: string,
+    props?: Omit<ResponseFormatTextJSONSchemaConfig, 'schema' | 'type' | 'strict' | 'name'>,
+): AutoParseableTextFormat<z.infer<ZodInput>> {
+    return makeParseableTextFormat(
+        {
+            type: 'json_schema',
+            ...props,
+            name,
+            strict: true,
+            schema: z.toJSONSchema(zodObject, { target: 'draft-7' }),
+        },
+        (content) => zodObject.parse(JSON.parse(content)),
+    );
+}
 
 export const useAssistantStore = defineStore('assistant', () => {
 
@@ -66,14 +104,40 @@ Remember: Your principal chose you not just for your competence, but for your ju
     const assistant = ref<Assistant>(db.get('assistant') ?? {
         openAiApiKey: '',
         model: 'gpt-4.1-nano',
-        personality: defaultPersonality
+        personality: defaultPersonality,
+        generatedTexts: {}
     })
 
     watch(assistant, (updateModel) => {
         db.set('assistant', updateModel)
     }, { deep: true, immediate: true })
 
-    async function run(options: { systemPrompt?: string, userPrompt: string, withPersonality?: boolean }) {
+    // Assistant generated Text Cache
+    function addText(key: string, text: string) {
+        const textWithDate = {
+            text: text,
+            date: now(),
+        }
+        assistant.value.generatedTexts[key] = JSON.stringify(textWithDate);
+    }
+
+    function getText(key: string, maxAgeMs?: number) {
+        const text = assistant.value.generatedTexts[key];
+        if (!text) {
+            return null;
+        }
+
+        const textWithDate = JSON.parse(text) as { text: string, date: number }
+        if (maxAgeMs && new Date(textWithDate.date).getTime() + maxAgeMs < Date.now()) {
+            return null;
+        }
+
+        return textWithDate.text;
+    }
+
+    async function run<T>(
+        options: RunOptions
+    ): Promise<T> {
         const client = new OpenAI({
             apiKey: assistant.value.openAiApiKey,
             dangerouslyAllowBrowser: true
@@ -98,28 +162,37 @@ Remember: Your principal chose you not just for your competence, but for your ju
 Furthermore there exist following details about me as the user that should be kept in mind!
 ${personalInformation}`
         }
-
         const name = userStore.user.name ?? ''
         if (name !== '') {
             enhancedSystemPrompt += `My name is ${name}.`
         }
 
-
-        const response = await client.responses.create({
+        const responsesBody: ResponseCreateParamsBase = {
             model: assistant.value.model,
             input: [
                 {
-                    role: 'developer',
+                    role: 'system',
                     content: enhancedSystemPrompt
                 },
                 {
                     role: 'user',
                     content: options.userPrompt
                 }
-            ]
-        })
+            ],
+        }
 
-        return response.output_text
+        if (options.jsonSchema) {
+            responsesBody.text = {
+                format: zodTextFormat(z.object({ response: options.jsonSchema }), "format")
+            }
+            const response = await client.responses.parse(responsesBody);
+            if (response.output_parsed && response.output_parsed.response) {
+                return response.output_parsed.response as T;
+            }
+        } else {
+            const response = await client.responses.create(responsesBody as ResponseCreateParamsNonStreaming)
+            return response.output_text as T
+        }
     }
 
     async function runWithTools(options: {
@@ -152,7 +225,8 @@ ${personalInformation}`
             enhancedSystemPrompt += `My name is ${name}.`
         }
 
-        const response = await client.chat.completions.create({
+        // inspect response.choices[0].message.tool_calls
+        return client.chat.completions.create({
             model: assistant.value.model,
             temperature: 0.3,
             tools: options.tools,
@@ -161,15 +235,14 @@ ${personalInformation}`
                 { role: "system", content: enhancedSystemPrompt },
                 { role: "user", content: options.userPrompt }
             ]
-        })
-
-        // inspect response.choices[0].message.tool_calls
-        return response
+        });
     }
 
     return {
         run,
         runWithTools,
+        addText,
+        getText,
         assistant
     }
 })

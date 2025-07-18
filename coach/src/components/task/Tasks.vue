@@ -1,31 +1,20 @@
 <script setup lang="ts">
 import { useTaskStore } from '@/stores/task'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import Task from '@/components/task/Task.vue'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Timer } from 'lucide-vue-next'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { ListTodo } from 'lucide-vue-next'
 import { useDB } from '@/composables/useDB.ts'
 import { useDateFormat } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 const taskStore = useTaskStore()
-const tasks = computed(() => taskStore.tasks)
+const { taskSuggestions, tasks } = storeToRefs(taskStore)
 const taskCount = computed(() => taskStore.flatTasks.length)
-
-const isGenerating = ref(false)
-const generateTasksFromCalendar = () => {
-    if (isGenerating.value) {
-        return
-    }
-    isGenerating.value = true
-    taskStore.generateTaskFromCalendar()
-        .finally(() => {
-            isGenerating.value = false
-        })
-}
 
 const db = useDB()
 const { lastUpdated } = storeToRefs(db)
@@ -37,16 +26,25 @@ const lastUpdatedDate = computed(() => useDateFormat(lastUpdated, 'D. MMMM YYYY,
     <Card class="shadow-md rounded-xl">
         <CardHeader>
             <div>
-                <CardTitle>Aufgaben ({{ taskCount }})</CardTitle>
+                <CardTitle class="flex items-center gap-2">
+                    <ListTodo/>
+                    Plane deinen Tag
+                </CardTitle>
+                <CardDescription>Du hast {{ taskCount }} {{ taskCount === 1 ? 'Aufgabe' : 'Aufgaben' }}
+                </CardDescription>
             </div>
-            <div class="flex justify-start items-center">
-                <Button variant="outline">
-                    <Timer/>
-                </Button>
+            <div v-if="taskSuggestions" class="flex justify-start items-center flex-wrap gap-2">
+                <template v-for="suggestion in taskSuggestions">
+                    <Badge class="cursor-pointer" @click="taskStore.addFromTitle(suggestion)" variant="outline">
+                        {{ suggestion }}
+                    </Badge>
+                </template>
+
+                <Separator orientation="horizontal"/>
             </div>
         </CardHeader>
         <CardContent>
-            <ScrollArea class="flex">
+            <ScrollArea class="flex" v-if="tasks && tasks.length > 0">
                 <div class="flex-1 flex flex-col gap-2 pt-0">
                     <TransitionGroup name="list" appear>
                         <template v-for="task in tasks" :key="task.id">

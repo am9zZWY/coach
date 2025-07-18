@@ -8,6 +8,7 @@ import { useAssistantStore } from '@/stores/assistant.ts'
 import { useDB } from '@/composables/useDB.ts'
 import { useCalendarStore } from '@/stores/calendar.ts'
 import { useMailStore } from "@/stores/mail.ts";
+import { z } from "zod";
 
 export const useTaskStore = defineStore('tasks', () => {
         const db = useDB()
@@ -24,6 +25,8 @@ export const useTaskStore = defineStore('tasks', () => {
         watch(lastUpdated, () => {
             tasks.value = db.get('tasks') ?? []
         })
+
+        const taskSuggestions = ref<string[]>([])
 
         const flatTasks = computed(() => getAllTasksR(tasks.value))
 
@@ -73,12 +76,17 @@ export const useTaskStore = defineStore('tasks', () => {
             return newTask.id
         }
 
-        function addFromTitle(title: string, parentId?: string) {
+
+        function addFromTitle(taskTitle: string, parentId?: string) {
             return add({
-                title: title,
+                title: taskTitle,
                 completed: false,
                 priority: Priority.Medium
             }, parentId)
+        }
+
+        function addSuggestion(taskTitle: string) {
+            taskSuggestions.value.push(taskTitle)
         }
 
         function remove(taskId: string): boolean {
@@ -162,28 +170,13 @@ Input: "Organizar fiesta de cumpleaños"
 Output: ["Hacer lista de invitados", "Comprar decoraciones", "Ordenar pastel", "Preparar comida y bebidas", "Enviar invitaciones"]`
             const userPrompt = `Break down this task into subtasks: "${task?.title}"`
 
-            const output = ref('')
+            const output = ref<string[]>([])
+            const format = z.array(z.string())
             try {
-                output.value = await assistantStore.run({ systemPrompt, userPrompt })
-                output.value = output.value
-                    // Remove empty lines
-                    .replace(/^\s*[\r\n]/gm, '')
-                    // Remove opening code block marker
-                    .replace(/^```json\s*/m, '')
-                    // Remove closing code block marker
-                    .replace(/```\s*$/m, '')
-                    // Remove backticks at start of lines
-                    .replace(/^`/gm, '')
-                    // Remove leading quote before the opening bracket
-                    .replace(/^"(\[)/, '$1')
-                    // Remove trailing backtick and quote
-                    .replace(/(])[\s`"]*$/, '$1')
-                console.debug('Generated text:', output.value)
+                output.value = await assistantStore.run({ systemPrompt, userPrompt, jsonSchema: format }) as string[]
 
-                // Parse the generated text
-                const parsedResult = JSON.parse(output.value) as string[]
                 // Update the task with the generated subtasks
-                parsedResult.forEach((subTask: string) => {
+                output.value.forEach((subTask: string) => {
                     add({
                         title: subTask,
                         completed: false,
@@ -197,8 +190,8 @@ Output: ["Hacer lista de invitados", "Comprar decoraciones", "Ordenar pastel", "
             }
         }
 
-        async function generateTaskFromCalendar() {
-            const systemPrompt = `You are a calendar-based task generator. Analyze calendar events and create preparatory tasks.
+        async function generateTaskSuggestionsFromInput(input: string, assistantPrompt: string) {
+            const systemPrompt = `${assistantPrompt}\n
 
 STRICT REQUIREMENTS:
 - Output EXACTLY a JSON array of strings
@@ -218,39 +211,41 @@ RESPONSE FORMAT: ["task 1", "task 2", "task 3"]
 
 EXAMPLES:
 Input: "Team meeting tomorrow at 2 PM"
-Output: ["Review meeting agenda and previous notes", "Prepare status update on current projects", "Test video conference setup 15 minutes early"]
+Output: ["Review meeting agenda", "Test video conference setup"]
 
 Input: "Dentist appointment Friday 10 AM"
 Output: ["Confirm appointment 24 hours before", "Prepare insurance card and ID", "Leave 30 minutes early for traffic"]`
 
-            const userPrompt = `Generate preparation tasks for these calendar events:\n${calendarStore.toString()}`
+            const userPrompt = `This the input:\n${input}`
 
 
-            const output = ref('')
+            const output = ref<string[]>([])
+            const format = z.array(z.string())
             try {
-                output.value = await assistantStore.run({ systemPrompt, userPrompt })
-                output.value = output.value
-                    // Remove empty lines
-                    .replace(/^\s*[\r\n]/gm, '')
-                    // Remove opening code block marker
-                    .replace(/^```json\s*/m, '')
-                    // Remove closing code block marker
-                    .replace(/```\s*$/m, '')
-                    // Remove backticks at start of lines
-                    .replace(/^`/gm, '')
-                    // Remove leading quote before the opening bracket
-                    .replace(/^"(\[)/, '$1')
-                    // Remove trailing backtick and quote
-                    .replace(/(])[\s`"]*$/, '$1')
-                console.debug('Generated text:', output.value)
-
-                // Parse the generated text
-                const parsedResult = JSON.parse(output.value)
+                output.value = await assistantStore.run({ systemPrompt, userPrompt, jsonSchema: format }) as string[]
                 // Update the task with the generated subtasks
-                parsedResult.forEach((subtask: string) => addFromTitle(subtask))
+                output.value.forEach((subtask: string) => addSuggestion(subtask))
             } catch (e: any) {
                 console.error('Generation failed:', e)
             }
+        }
+
+        async function generateTaskFromCalendar() {
+            await generateTaskSuggestionsFromInput(calendarStore.toString(), `You are a calendar-based task generator. Analyze calendar events and create preparatory tasks.
+
+STRICT REQUIREMENTS:
+- Output EXACTLY a JSON array of strings
+- Generate 2-5 specific preparation tasks
+- Tasks must be actionable and relevant to the events
+- Consider timing, location, and event type
+- Maintain the same language as the calendar events
+- Return ONLY the JSON array - no explanations, no markdown, no additional text
+
+TASK GENERATION RULES:
+- For meetings: preparation materials, agenda items, travel time
+- For deadlines: completion steps, review time, submission prep
+- For appointments: documents needed, travel arrangements, confirmations
+- For events: outfit/attire, gifts, RSVPs`)
         }
 
         async function generateTasksFromMail() {
@@ -294,32 +289,7 @@ CONTENT: ${mail.body}
 ---`
             }).join('\n')}`
 
-
-            const output = ref('')
-            try {
-                output.value = await assistantStore.run({ systemPrompt, userPrompt: userPrompt })
-                output.value = output.value
-                    // Remove empty lines
-                    .replace(/^\s*[\r\n]/gm, '')
-                    // Remove opening code block marker
-                    .replace(/^```json\s*/m, '')
-                    // Remove closing code block marker
-                    .replace(/```\s*$/m, '')
-                    // Remove backticks at start of lines
-                    .replace(/^`/gm, '')
-                    // Remove leading quote before the opening bracket
-                    .replace(/^"(\[)/, '$1')
-                    // Remove trailing backtick and quote
-                    .replace(/(])[\s`"]*$/, '$1')
-                console.debug('Generated text:', output.value)
-
-                // Parse the generated text
-                const parsedResult = JSON.parse(output.value)
-                // Update the task with the generated subtasks
-                parsedResult.forEach((subtask: string) => addFromTitle(subtask))
-            } catch (e: any) {
-                console.error('Generation failed:', e)
-            }
+            await generateTaskSuggestionsFromInput(userPrompt, systemPrompt)
         }
 
         function toString(): string {
@@ -337,6 +307,7 @@ CONTENT: ${mail.body}
         return {
             tasks,
             flatTasks,
+            taskSuggestions,
             toString,
             add,
             addFromTitle,
@@ -344,6 +315,7 @@ CONTENT: ${mail.body}
             update,
             sort,
             breakTaskIntoSubtasks,
+            generateTaskSuggestionsFromInput,
             generateTaskFromCalendar,
             generateTasksFromMail
         }

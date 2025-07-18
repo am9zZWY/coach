@@ -5,7 +5,7 @@ import { useTaskStore } from '@/stores/task' // Fixed: removed ".ts" extension
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { CalendarIcon, Check, ChevronRight, Square, SquareCheck, WandSparkles, X } from 'lucide-vue-next'
+import { CalendarIcon, Check, ChevronRight, Circle, CircleCheck, WandSparkles, X } from 'lucide-vue-next'
 import { useDateFormat } from '@vueuse/core'
 import { Calendar } from '@/components/ui/calendar'
 import { type DateValue } from 'reka-ui'
@@ -78,7 +78,7 @@ const saveEditingTitle = () => {
 
 <template>
     <div
-        class="flex flex-col gap-2 rounded-lg border-b border-border/40 border p-2 text-left text-sm transition-all group relative"
+        class="flex flex-col gap-2 rounded-lg border-b border-border/20 border hover:border-border/60 p-2 text-left text-sm transition-all group relative"
     >
         <!-- Main task row -->
         <div class="flex items-center py-1 gap-3 group">
@@ -86,13 +86,13 @@ const saveEditingTitle = () => {
                 @click.stop="toggleTaskCompletion"
                 class="flex items-center justify-center w-5 h-5 mt-1 opacity-60 hover:opacity-100 transition-opacity"
             >
-                <Square
+                <Circle
                     v-if="!task.completed"
                     class="text-muted-foreground hover:text-foreground transition-colors"
                 />
-                <SquareCheck
+                <CircleCheck
                     v-else
-                    class="text-primary"
+                    class="text-green-700"
                 />
             </div>
 
@@ -112,8 +112,8 @@ const saveEditingTitle = () => {
                 :class="{ 'line-through text-muted-foreground': task.completed, 'text-red-500': isOverdue }"
                 @dblclick="startEditingTitle"
             >
-        {{ task.title }}
-      </span>
+                {{ task.title }}
+            </span>
 
             <!-- Action buttons - desktop only -->
             <div class="hidden md:flex items-center gap-1">
@@ -197,11 +197,11 @@ const saveEditingTitle = () => {
                 </Popover>
             </div>
 
-            <div v-if="task.subTasks?.length" class="space-y-2 mt-2">
-                <div class="tasks-list">
+            <Transition name="fade" mode="out-in">
+                <div v-if="task.subTasks?.length" class="space-y-2 mt-2">
                     <Task v-for="subTask in task.subTasks" :key="subTask.id" :task="subTask"/>
                 </div>
-            </div>
+            </Transition>
 
             <!-- Add subtask input -->
             <div class="flex gap-2">
