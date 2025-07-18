@@ -29,8 +29,8 @@ const { isReachable } = storeToRefs(api)
         <Separator orientation="horizontal" class="my-8 opacity-70"/>
 
         <!-- Cooking Suggestion Section -->
-        <section>
+        <div>
             <CookingSuggestion/>
-        </section>
+        </div>
     </div>
 </template>

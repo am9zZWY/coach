@@ -25,7 +25,7 @@
     "date-fns": "^4.1.0",
     "lucide-vue-next": "^0.525.0",
     "lz-string": "^1.5.0",
-    "openai": "^5.9.0",
+    "openai": "^5.10.1",
     "peerjs": "^1.5.5",
     "pinia": "^3.0.3",
     "reka-ui": "^2.3.2",
@@ -37,19 +37,20 @@
     "uuid": "^11.1.0",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1",
-    "vue-sonner": "^2.0.1"
+    "vue-sonner": "^2.0.2",
+    "zod": "^4.0.5"
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.2",
-    "@types/node": "^24.0.13",
+    "@types/node": "^24.0.14",
     "@vite-pwa/assets-generator": "^1.0.0",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",
     "npm-run-all2": "^8.0.4",
     "typescript": "~5.8.3",
-    "vite": "npm:rolldown-vite@^7.0.8",
+    "vite": "npm:rolldown-vite@latest",
     "vite-plugin-pwa": "^1.0.1",
     "vite-plugin-vue-devtools": "^7.7.7",
-    "vue-tsc": "^3.0.1"
+    "vue-tsc": "^3.0.3"
   }
 }
