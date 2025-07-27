@@ -59,12 +59,18 @@ const suggestRecipes = async () => {
     error.value = null
     cookingSuggestion.value = ''
     loading.value = true
-    try {
-        cookingSuggestion.value = await assistantStore.run({ userPrompt: userPrompt.value, systemPrompt: systemPrompt })
-    } catch (e) {
+    const response = await assistantStore.run({
+        userPrompt: userPrompt.value,
+        systemPrompt: systemPrompt,
+    })
+    if (!response) {
         error.value = 'Fehler beim Laden der Rezepte. Bitte versuche es erneut.'
-    } finally {
+        console.error(error.value)
         loading.value = false
+        return;
     }
+
+    cookingSuggestion.value = response as string;
+    loading.value = false
 }
 </script>

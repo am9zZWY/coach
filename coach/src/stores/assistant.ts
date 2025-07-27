@@ -137,7 +137,7 @@ Remember: Your principal chose you not just for your competence, but for your ju
 
     async function run<T>(
         options: RunOptions
-    ): Promise<T> {
+    ): Promise<T | null> {
         const client = new OpenAI({
             apiKey: assistant.value.openAiApiKey,
             dangerouslyAllowBrowser: true
@@ -167,30 +167,46 @@ ${personalInformation}`
             enhancedSystemPrompt += `My name is ${name}.`
         }
 
-        const responsesBody: ResponseCreateParamsBase = {
-            model: assistant.value.model,
-            input: [
-                {
-                    role: 'system',
-                    content: enhancedSystemPrompt
-                },
-                {
-                    role: 'user',
-                    content: options.userPrompt
-                }
-            ],
-        }
 
         if (options.jsonSchema) {
-            responsesBody.text = {
-                format: zodTextFormat(z.object({ response: options.jsonSchema }), "format")
+            const responsesBody: ResponseCreateParamsBase = {
+                model: assistant.value.model,
+                input: [
+                    {
+                        role: 'system',
+                        content: enhancedSystemPrompt
+                    },
+                    {
+                        role: 'user',
+                        content: options.userPrompt
+                    }
+                ],
+                text: {
+                    format: zodTextFormat(z.object({ response: options.jsonSchema }), "format"),
+                }
             }
-            const response = await client.responses.parse(responsesBody);
-            if (response.output_parsed && response.output_parsed.response) {
+
+            const response = await client.responses.parse(responsesBody) as any;
+            if (response?.output_parsed?.response) {
                 return response.output_parsed.response as T;
             }
+            return null;
         } else {
-            const response = await client.responses.create(responsesBody as ResponseCreateParamsNonStreaming)
+            const responsesBody: ResponseCreateParamsNonStreaming = {
+                model: assistant.value.model,
+                input: [
+                    {
+                        role: 'system',
+                        content: enhancedSystemPrompt
+                    },
+                    {
+                        role: 'user',
+                        content: options.userPrompt
+                    }
+                ],
+            }
+
+            const response = await client.responses.create(responsesBody)
             return response.output_text as T
         }
     }

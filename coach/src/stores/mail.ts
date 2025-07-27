@@ -115,9 +115,8 @@ export const useMailStore = defineStore('mails', () => {
                 return;
             }
 
-            try {
-                const summary = await assistantStore.run({
-                    systemPrompt: `You are an email summarization assistant. Your task is to create concise, informative summaries.
+            const response = await assistantStore.run({
+                systemPrompt: `You are an email summarization assistant. Your task is to create concise, informative summaries.
             
             Instructions:
             - Extract the main purpose/request of the email
@@ -128,22 +127,24 @@ export const useMailStore = defineStore('mails', () => {
             - Format: Single sentence without punctuation at the end
             - Style: Professional and clear`,
 
-                    userPrompt: `Original email from ${mail.from} to summarize:
+                userPrompt: `Original email from ${mail.from} to summarize:
                                 SUBJECT: ${mail.subject}
                                 BODY: ${mail.body}`,
-                    withPersonality: false
-                });
+                withPersonality: false
+            });
 
-                mails.value = {
-                    ...mails.value,
-                    [mailId]: {
-                        ...mails.value[mailId],
-                        summary
-                    }
-                };
-            } catch (error) {
-                console.error('Failed to generate summary:', error)
+            if (!response) {
+                console.error('Failed to generate summary')
+                return;
             }
+
+            mails.value = {
+                ...mails.value,
+                [mailId]: {
+                    ...mails.value[mailId],
+                    summary: response as string
+                }
+            };
         }
 
         async function generateReply(mailId: string) {
@@ -152,9 +153,8 @@ export const useMailStore = defineStore('mails', () => {
                 return;
             }
 
-            try {
-                const reply = await assistantStore.run({
-                    systemPrompt: `Generate a direct email reply. No AI assistant preambles or explanations.
+            const response = await assistantStore.run({
+                systemPrompt: `Generate a direct email reply. No AI assistant preambles or explanations.
 
             Rules:
             - Write ONLY the email content itself
@@ -167,22 +167,24 @@ export const useMailStore = defineStore('mails', () => {
             
             Senders personality that MUST be matched: ${userStore.user.mailPersonality}.
             `,
-                    userPrompt: `Original email from ${mail.from} to respond to:
+                userPrompt: `Original email from ${mail.from} to respond to:
                                 SUBJECT: ${mail.subject}
                                 BODY: ${mail.body}`,
-                    withPersonality: false
-                });
+                withPersonality: false
+            });
 
-                mails.value = {
-                    ...mails.value,
-                    [mailId]: {
-                        ...mails.value[mailId],
-                        reply
-                    }
-                };
-            } catch (error) {
-                console.error('Failed to generate reply:', error)
+            if (!response) {
+                console.error('Failed to generate reply.')
+                return;
             }
+
+            mails.value = {
+                ...mails.value,
+                [mailId]: {
+                    ...mails.value[mailId],
+                    reply: response as string
+                }
+            };
         }
 
         async function triage(mailId: string) {
