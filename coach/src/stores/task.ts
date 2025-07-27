@@ -172,22 +172,25 @@ Output: ["Hacer lista de invitados", "Comprar decoraciones", "Ordenar pastel", "
 
             const output = ref<string[]>([])
             const format = z.array(z.string())
-            try {
-                output.value = await assistantStore.run({ systemPrompt, userPrompt, jsonSchema: format }) as string[]
+            const response = await assistantStore.run({ systemPrompt, userPrompt, jsonSchema: format }) as string[]
 
-                // Update the task with the generated subtasks
-                output.value.forEach((subTask: string) => {
-                    add({
-                        title: subTask,
-                        completed: false,
-                        dueDate: task.dueDate,
-                        priority: 2,
-                        parentId: task.id
-                    }, task.id)
-                })
-            } catch (e: any) {
-                console.error('Generation failed:', e)
+            if (!response) {
+                console.error('Failed to break down tasks!')
+                return;
             }
+
+            output.value = response
+
+            // Update the task with the generated subtasks
+            output.value.forEach((subTask: string) => {
+                add({
+                    title: subTask,
+                    completed: false,
+                    dueDate: task.dueDate,
+                    priority: 2,
+                    parentId: task.id
+                }, task.id)
+            })
         }
 
         async function generateTaskSuggestionsFromInput(input: string, assistantPrompt: string) {
@@ -221,13 +224,16 @@ Output: ["Confirm appointment 24 hours before", "Prepare insurance card and ID",
 
             const output = ref<string[]>([])
             const format = z.array(z.string())
-            try {
-                output.value = await assistantStore.run({ systemPrompt, userPrompt, jsonSchema: format }) as string[]
-                // Update the task with the generated subtasks
-                output.value.forEach((subtask: string) => addSuggestion(subtask))
-            } catch (e: any) {
-                console.error('Generation failed:', e)
+            const response = await assistantStore.run({ systemPrompt, userPrompt, jsonSchema: format }) as string[]
+
+            if (!response) {
+                console.error('Failed to generate tasks!')
+                return;
             }
+
+            output.value = await assistantStore.run({ systemPrompt, userPrompt, jsonSchema: format }) as string[]
+            // Update the task with the generated subtasks
+            output.value.forEach((subtask: string) => addSuggestion(subtask))
         }
 
         async function generateTaskFromCalendar() {
