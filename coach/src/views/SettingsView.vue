@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from 'reka-ui'
 import { useWeatherStore } from '@/stores/weather.ts'
 import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'vue-sonner'
@@ -27,38 +27,51 @@ const assistantStore = useAssistantStore()
 const { assistant } = storeToRefs(assistantStore)
 
 const weatherStore = useWeatherStore()
-const { location, weather } = storeToRefs(weatherStore)
+const { location } = storeToRefs(weatherStore)
 
 const syncStore = useSyncStore()
 const { knownClients } = storeToRefs(syncStore)
 
-const openAiApiKeyInput = ref<string>(assistant.value.openAiApiKey)
-const weatherApiKeyInput = ref<string>(weather.value.weatherApiKey)
-const locationInput = ref<string>(location.value)
+const openAiApiKeyInput = ref<string>('')
+const weatherApiKeyInput = ref<string>('')
+const locationInput = ref<string>('')
 const clientIdInput = ref<string>('')
+const username = ref('')
+const password = ref('')
 
+onMounted(() => {
+    weatherStore.loadWeatherSettings().then(() => {
+        locationInput.value = location.value
+    })
+})
+
+async function handleLogin() {
+    const success = await userStore.login(username.value, password.value)
+    if (success) {
+        toast('Login successful')
+        await weatherStore.loadWeatherSettings()
+        locationInput.value = location.value
+    } else {
+        toast('Login failed', { description: 'Please check your username and password.' })
+    }
+}
 
 function updateOpenAiApiKey() {
-    assistant.value.openAiApiKey = openAiApiKeyInput.value
-    toast('API-Schlüssel aktualisiert', {
-        description: 'Dein OpenAI API-Schlüssel wurde erfolgreich gespeichert.'
+    if (!openAiApiKeyInput.value) {
+        toast.error('API Key cannot be empty')
+        return
+    }
+    userStore.setOpenAIApiKey(openAiApiKeyInput.value)
+    toast('API-Schlüssel wird aktualisiert', {
+        description: 'Dein OpenAI API-Schlüssel wird auf dem Server gespeichert.'
     })
 }
 
-function updateLocation() {
-    location.value = locationInput.value
-    toast('Standort aktualisiert', {
-        description: `Wetterinformationen werden jetzt für ${locationInput.value} angezeigt.`
+function updateWeatherSettings() {
+    weatherStore.updateWeatherSettings(weatherApiKeyInput.value, locationInput.value)
+    toast('Wetter Einstellungen aktualisiert', {
+        description: `Deine Wetter Einstellungen werden gespeichert.`
     })
-}
-
-function updateWeatherApiKey() {
-    weather.value.weatherApiKey = weatherApiKeyInput.value
-    console.info(weatherApiKeyInput.value)
-    toast('API-Schlüssel aktualisiert',
-        {
-            description: 'Dein Weather API-Schlüssel wurde erfolgreich gespeichert.'
-        })
 }
 
 function addClient() {
@@ -84,6 +97,47 @@ function copyClientId() {
         <h1 class="text-3xl font-bold mb-6">Einstellungen</h1>
 
         <div class="space-y-6">
+            <!-- Login Card -->
+            <Card>
+                <CardHeader class="space-y-1">
+                    <CardTitle class="flex items-center gap-2">
+                        <Settings class="h-5 w-5 shrink-0"/>
+                        Login
+                    </CardTitle>
+                    <CardDescription>
+                        Authenticate to use the API.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form @submit.prevent="handleLogin" class="space-y-4">
+                        <div class="space-y-2">
+                            <Label for="username">Username</Label>
+                            <Input
+                                id="username"
+                                v-model="username"
+                                placeholder="Enter your username"
+                                type="text"
+                                class="flex-1"
+                            />
+                        </div>
+                        <div class="space-y-2">
+                            <Label for="password">Password</Label>
+                            <Input
+                                id="password"
+                                v-model="password"
+                                placeholder="Enter your password"
+                                type="password"
+                                class="flex-1"
+                            />
+                        </div>
+                        <Button type="submit" size="sm" class="shrink-0">
+                            <Check class="h-4 w-4 mr-2"/>
+                            Login
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
+
             <!-- Personal Settings Card -->
             <Card>
                 <CardHeader class="space-y-1">
@@ -217,153 +271,48 @@ function copyClientId() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div class="space-y-6">
+                    <form @submit.prevent="updateWeatherSettings" class="space-y-6">
                         <!-- Location Settings -->
-                        <form @submit.prevent="updateLocation" class="space-y-2">
+                        <div class="space-y-2">
                             <Label for="location" class="flex items-center gap-1">
                                 <MapPin class="h-4 w-4"/>
                                 Standort
                             </Label>
-                            <div class="flex gap-2">
-                                <Input
-                                    id="location"
-                                    v-model="locationInput"
-                                    type="text"
-                                    placeholder="Für wo möchtest du das Wetter haben?"
-                                    class="flex-1"
-                                />
-                                <Button type="submit" size="sm" class="shrink-0">
-                                    <Check class="h-4 w-4 mr-2"/>
-                                    Speichern
-                                </Button>
-                            </div>
-                        </form>
+                            <Input
+                                id="location"
+                                v-model="locationInput"
+                                type="text"
+                                placeholder="Für wo möchtest du das Wetter haben?"
+                                class="flex-1"
+                            />
+                        </div>
 
                         <Separator/>
 
                         <!-- Weather API Key Settings -->
-                        <form @submit.prevent="updateWeatherApiKey" class="space-y-2">
+                        <div class="space-y-2">
                             <Label for="weatherApiKey">Weather API Schlüssel</Label>
-                            <div class="flex gap-2">
-                                <Input
-                                    id="weatherApiKey"
-                                    v-model="weatherApiKeyInput"
-                                    type="password"
-                                    placeholder="Füge einen Weather API Schlüssel ein"
-                                    class="flex-1"
-                                />
-                                <Button type="submit" size="sm" class="shrink-0">
-                                    <Check class="h-4 w-4 mr-2"/>
-                                    Speichern
-                                </Button>
-                            </div>
+                            <Input
+                                id="weatherApiKey"
+                                v-model="weatherApiKeyInput"
+                                type="password"
+                                placeholder="Füge einen Weather API Schlüssel ein"
+                                class="flex-1"
+                            />
                             <p class="text-sm text-muted-foreground">
                                 Erstelle <a class="underline hover:text-primary transition-colors"
                                             href="https://www.weatherapi.com/my/"
                                             target="_blank"
                                             rel="noreferrer">hier</a> einen Weather API Schlüssel.
                             </p>
-                        </form>
-                    </div>
+                        </div>
+                        <Button type="submit" size="sm" class="shrink-0">
+                            <Check class="h-4 w-4 mr-2"/>
+                            Speichern
+                        </Button>
+                    </form>
                 </CardContent>
             </Card>
-
-            <!-- Apple Card -->
-            <!-- <Card>
-              <CardHeader class="space-y-1">
-                <CardTitle class="flex items-center gap-2">
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple"
-                       class="h-5 w-5 shrink-0" />
-                  Apple Einstellungen
-                </CardTitle>
-                <CardDescription>
-                  Verbinde deine Apple-Dienste (z.B. Kalender, iCloud)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form @submit.prevent="saveAppleCredentials" class="space-y-4">
-                  <div class="space-y-2">
-                    <Label for="appleId">Apple-ID</Label>
-                    <Input
-                      id="appleId"
-                      v-model="appleIdInput"
-                      type="email"
-                      placeholder="Deine Apple-ID (E-Mail)"
-                    />
-                  </div>
-                  <div class="space-y-2">
-                    <Label for="appleAppPassword">App-spezifisches Passwort</Label>
-                    <Input
-                      id="appleAppPassword"
-                      v-model="appleAppPasswordInput"
-                      type="password"
-                      placeholder="App-spezifisches Passwort"
-                    />
-                    <p class="text-sm text-muted-foreground">
-                      Erstelle ein <a class="underline hover:text-primary transition-colors" href="https://appleid.apple.com/account/manage"
-                                      target="_blank" rel="noreferrer">app-spezifisches Passwort</a> für Drittanbieter-Apps.
-                    </p>
-                  </div>
-                  <Button type="submit" size="sm">
-                    <Check class="h-4 w-4 mr-2" />
-                    Speichern
-                  </Button>
-                </form>
-              </CardContent>
-            </Card> -->
-
-            <!-- ICS Settings Card -->
-            <!-- <Card>
-              <CardHeader class="space-y-1">
-                <CardTitle class="flex items-center gap-2">
-                  <Cloud class="h-5 w-5 shrink-0" />
-                  Kalender Einstellungen
-                </CardTitle>
-                <CardDescription>
-                  Verwalte Kalender für deine Anwendung
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div class="space-y-6">
-                  <form @submit.prevent="addCalendar" class="space-y-2">
-                    <Label for="calendarUrl">Kalender-URL (ICS)</Label>
-                    <div class="flex gap-2">
-                      <Input
-                        id="calendarUrl"
-                        v-model="calendarUrlInput"
-                        type="url"
-                        placeholder="Füge eine Kalender-URL (ICS) ein"
-                        class="flex-1"
-                      />
-                      <Button type="submit" size="sm" class="shrink-0">
-                        <Check class="h-4 w-4 mr-2" />
-                        Hinzufügen
-                      </Button>
-                    </div>
-                    <p class="text-sm text-muted-foreground">
-                      Unterstützt öffentliche ICS-Links (z.B. von Google Kalender, Outlook, etc.).
-                    </p>
-                  </form>
-
-                  <Separator />
-
-                  <div v-if="calendarIcsUrls.length > 0" class="space-y-2">
-                    <Label>Deine Kalender:</Label>
-                    <ul class="space-y-2">
-                      <li v-for="url in calendarIcsUrls" :key="url" class="flex items-center justify-between rounded-md border p-2">
-                        <span class="text-sm break-all pr-2">{{ url }}</span>
-                        <Button variant="destructive" size="sm" class="shrink-0" @click="removeCalendar(url)">
-                          Entfernen
-                        </Button>
-                      </li>
-                    </ul>
-                  </div>
-                  <div v-else class="text-sm text-muted-foreground py-2">
-                    Noch keine Kalender-URLs hinzugefügt.
-                  </div>
-                </div>
-              </CardContent>
-            </Card> -->
 
             <!-- Encoded Settings -->
             <Card>

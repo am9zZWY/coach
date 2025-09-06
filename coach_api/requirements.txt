@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+SQLAlchemy
+passlib[bcrypt]
+PyJWT
+cryptography
+python-multipart
+openai
+jsonschema
+httpx
