@@ -1,55 +1,26 @@
 // noinspection t
 
 import { ref, watch } from 'vue'
-import OpenAI from 'openai'
 import { useDB } from '@/composables/useDB.ts'
 import { defineStore } from 'pinia'
 import { useUserStore } from '@/stores/user.ts'
 import type { Assistant } from '@/models/assistant.ts'
 import { now } from "@vueuse/core";
-import type {
-    ResponseCreateParamsBase,
-    ResponseCreateParamsNonStreaming,
-    ResponseFormatTextJSONSchemaConfig
-} from "openai/resources/responses/responses";
-import { z } from 'zod'
-import { type AutoParseableTextFormat, makeParseableTextFormat } from "openai/lib/parser";
-
+import { useAPI } from "@/composables/useApi.ts";
 
 type RunOptions = {
     systemPrompt?: string;
     userPrompt: string;
     withPersonality?: boolean;
-    jsonSchema?: z.ZodType;              // bestimmt das Rückgabeformat
+    jsonSchema?: any;
 };
-
-/**
- * https://github.com/openai/openai-node/issues/1576#issuecomment-3056734414
- * @param zodObject
- * @param name
- * @param props
- */
-export function zodTextFormat<ZodInput extends z.ZodType>(
-    zodObject: ZodInput,
-    name: string,
-    props?: Omit<ResponseFormatTextJSONSchemaConfig, 'schema' | 'type' | 'strict' | 'name'>,
-): AutoParseableTextFormat<z.infer<ZodInput>> {
-    return makeParseableTextFormat(
-        {
-            type: 'json_schema',
-            ...props,
-            name,
-            strict: true,
-            schema: z.toJSONSchema(zodObject, { target: 'draft-7' }),
-        },
-        (content) => zodObject.parse(JSON.parse(content)),
-    );
-}
 
 export const useAssistantStore = defineStore('assistant', () => {
 
     const db = useDB()
     const userStore = useUserStore()
+    const apiStore = useAPI();
+
     const defaultPersonality = `
 You are Jean-Philippe, a 68-year-old executive assistant with 35 years of experience serving high-profile clients across Paris, London, and New York. You are the principal's trusted right hand, having worked together for three years.
 
@@ -102,7 +73,6 @@ Remember: Your principal chose you not just for your competence, but for your ju
 `
 
     const assistant = ref<Assistant>(db.get('assistant') ?? {
-        openAiApiKey: '',
         model: 'gpt-4.1-nano',
         personality: defaultPersonality,
         generatedTexts: {}
@@ -138,10 +108,10 @@ Remember: Your principal chose you not just for your competence, but for your ju
     async function run<T>(
         options: RunOptions
     ): Promise<T | null> {
-        const client = new OpenAI({
-            apiKey: assistant.value.openAiApiKey,
-            dangerouslyAllowBrowser: true
-        })
+        if (!apiStore.api.enableAPI || !apiStore.api.apiURL) {
+            console.error('API is not enabled or URL not set.');
+            return null;
+        }
 
         let enhancedSystemPrompt = ``
 
@@ -167,47 +137,42 @@ ${personalInformation}`
             enhancedSystemPrompt += `My name is ${name}.`
         }
 
-
-        if (options.jsonSchema) {
-            const responsesBody: ResponseCreateParamsBase = {
-                model: assistant.value.model,
-                input: [
-                    {
-                        role: 'system',
-                        content: enhancedSystemPrompt
-                    },
-                    {
-                        role: 'user',
-                        content: options.userPrompt
-                    }
-                ],
-                text: {
-                    format: zodTextFormat(z.object({ response: options.jsonSchema }), "format"),
-                }
-            }
-
-            const response = await client.responses.parse(responsesBody) as any;
-            if (response?.output_parsed?.response) {
-                return response.output_parsed.response as T;
-            }
+        const token = userStore.user.token;
+        if (!token) {
+            console.error('User is not authenticated.');
             return null;
-        } else {
-            const responsesBody: ResponseCreateParamsNonStreaming = {
-                model: assistant.value.model,
-                input: [
-                    {
-                        role: 'system',
-                        content: enhancedSystemPrompt
-                    },
-                    {
-                        role: 'user',
-                        content: options.userPrompt
-                    }
-                ],
+        }
+
+        try {
+            const body = {
+                system_prompt: enhancedSystemPrompt,
+                user_prompt: options.userPrompt,
+                json_schema: options.jsonSchema
+            };
+
+            const response = await fetch(`${apiStore.api.apiURL}/assistant/run`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Failed to fetch from assistant API');
             }
 
-            const response = await client.responses.create(responsesBody)
-            return response.output_text as T
+            const data = await response.json();
+            if (options.jsonSchema) {
+                return data as T;
+            }
+            return data.response as T;
+
+        } catch (error) {
+            console.error('Error calling assistant API:', error);
+            return null;
         }
     }
 
@@ -216,10 +181,10 @@ ${personalInformation}`
         systemPrompt: string,
         userPrompt: string
     }) {
-        const client = new OpenAI({
-            apiKey: assistant.value.openAiApiKey,
-            dangerouslyAllowBrowser: true
-        })
+        if (!apiStore.api.enableAPI || !apiStore.api.apiURL) {
+            console.error('API is not enabled or URL not set.');
+            return null;
+        }
 
         let enhancedSystemPrompt = ``
 
@@ -235,23 +200,42 @@ ${personalInformation}`
 Furthermore there exist following details about me as the user that should be kept in mind!
 ${personalInformation}`
         }
-
         const name = userStore.user.name ?? ''
         if (name !== '') {
             enhancedSystemPrompt += `My name is ${name}.`
         }
 
-        // inspect response.choices[0].message.tool_calls
-        return client.chat.completions.create({
-            model: assistant.value.model,
-            temperature: 0.3,
-            tools: options.tools,
-            tool_choice: "auto",
-            messages: [
-                { role: "system", content: enhancedSystemPrompt },
-                { role: "user", content: options.userPrompt }
-            ]
-        });
+        const token = userStore.user.token;
+        if (!token) {
+            console.error('User is not authenticated.');
+            return null;
+        }
+
+        try {
+            const response = await fetch(`${apiStore.api.apiURL}/assistant/run_with_tools`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    system_prompt: enhancedSystemPrompt,
+                    user_prompt: options.userPrompt,
+                    tools: options.tools
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Failed to fetch from assistant API');
+            }
+
+            return await response.json();
+
+        } catch (error) {
+            console.error('Error calling assistant API with tools:', error);
+            return null;
+        }
     }
 
     return {
